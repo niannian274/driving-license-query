@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>行驶证查询系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#fff5f0;min-height:100vh}
+.header{background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;padding:20px 16px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(249,115,22,0.3)}
+.header h1{font-size:20px;margin-bottom:4px}
+.header .sub{font-size:12px;opacity:0.9}
+.stats{display:flex;justify-content:center;gap:16px;margin-top:10px;font-size:12px;opacity:0.85}
+.stats span{display:flex;align-items:center;gap:4px}
+.search-box{padding:12px 16px;background:#fff;position:sticky;top:96px;z-index:99;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.search-inner{display:flex;gap:8px;max-width:420px;margin:0 auto}
+.search-inner input{flex:1;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;outline:none;transition:border-color .2s;min-width:0}
+.search-inner input:focus{border-color:#f97316}
+.search-inner button{padding:10px 20px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;white-space:nowrap;font-weight:600}
+.search-inner button:active{background:#ea580c}
+.search-hint{padding:6px 0 0;font-size:12px;color:#999;text-align:center}
+.container{padding:12px 16px;max-width:800px;margin:0 auto}
+.empty-state{text-align:center;padding:60px 20px;color:#999}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px;line-height:1.6}
+.loading{text-align:center;padding:40px;color:#999}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid #fed7aa;border-top-color:#f97316;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.result-header{display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:14px;color:#666;border-bottom:1px solid #eee;margin-bottom:8px}
+.result-count{font-weight:600;color:#f97316}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:4px solid #f97316}
+.card.out{background:#fff;border-left-color:#ea580c}
+.card .plate{font-size:20px;font-weight:700;color:#f97316;margin-bottom:8px}
+.card.out .plate{color:#ea580c}
+.card .plate .out-tag{display:inline-block;background:#ea580c;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:8px;vertical-align:middle}
+.card .plate .in-tag{display:inline-block;background:#22c55e;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:8px;vertical-align:middle}
+.card .plate .returned-tag{display:inline-block;background:#a1a1aa;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:8px;vertical-align:middle}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:14px}
+.info-item{display:flex;align-items:baseline}
+.info-label{color:#999;min-width:56px;flex-shrink:0}
+.info-value{color:#333;word-break:break-all}
+.borrow-info{margin-top:10px;padding:10px;background:#fff7ed;border-radius:8px;font-size:13px}
+.borrow-info .bi-title{font-weight:600;color:#ea580c;margin-bottom:6px;font-size:12px}
+.borrow-info .bi-row{display:flex;justify-content:space-between;padding:3px 0;color:#666}
+.borrow-info .bi-row span:last-child{font-weight:500;color:#333}
+.return-info{margin-top:6px;padding:8px;background:#f0fdf4;border-radius:6px;font-size:12px;color:#16a34a}
+.fixed-branch{margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.branch-badge{display:inline-block;background:#fff7ed;color:#f97316;font-size:11px;padding:2px 8px;border-radius:12px;font-weight:500}
+.vin-copy{cursor:pointer;color:#f97316;font-size:11px;margin-left:4px}
+.error{text-align:center;padding:20px;color:#ff3b30;font-size:14px}
+.data-info{text-align:center;padding:10px;color:#bbb;font-size:11px;margin-top:20px}
+.out-of-stock{color:#dc2626;font-size:11px;margin-left:6px}
+@media(max-width:480px){
+  .header{padding:14px 12px}
+  .header h1{font-size:18px}
+  .search-box{top:80px;padding:10px 12px}
+  .container{padding:8px 12px}
+  .info-grid{grid-template-columns:1fr}
+  .card{padding:12px}
+  .card .plate{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🚗 行驶证查询系统</h1>
+  <div class="sub">喜相逢 — 车辆信息快速查询</div>
+  <div class="stats" id="stats">加载中...</div>
+</div>
+<div class="search-box">
+  <div class="search-inner">
+    <input type="text" id="searchInput" placeholder="输入车牌号查询，如：鲁AFR3280" autofocus autocomplete="off">
+    <button onclick="search()">查询</button>
+  </div>
+  <div class="search-hint">支持精确查询和模糊查询（输入部分车牌号即可）</div>
+</div>
+<div class="container" id="results">
+  <div class="loading"><div class="spinner"></div><p style="margin-top:12px">正在加载数据...</p></div>
+</div>
+<div class="data-info" id="dataInfo">数据来源：腾讯文档 · 行驶证总表</div>
+
+<script>
+let DB = null;
+let IDX = null;
+let TOTAL = 0;
+let PLATES = 0;
+const UPDATE_DATE = "2026-06-17";
+
+async function loadData(){
+  try{
+    const resp = await fetch('data/vehicle_data.json');
+    const raw = await resp.json();
+    DB = raw.d;
+    IDX = raw.i;
+    TOTAL = raw.t;
+    PLATES = Object.keys(IDX).length;
+    document.getElementById('stats').innerHTML = '<span>📊 ' + TOTAL + ' 条</span><span>🚙 ' + PLATES + ' 个车牌</span>';
+    document.getElementById('dataInfo').textContent = '数据来源：腾讯文档 · 行驶证总表 · 更新于 ' + UPDATE_DATE;
+    document.getElementById('results').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <p>数据加载完成！<br>共 ${TOTAL} 条车辆记录，${PLATES} 个车牌<br><br>请在上方输入车牌号开始查询</p>
+      </div>`;
+  } catch(e){
+    document.getElementById('results').innerHTML = `<div class="error">数据加载失败：${e.message}<br>请刷新页面重试</div>`;
+  }
+}
+
+function search(){
+  const q = document.getElementById('searchInput').value.trim();
+  if(!q){ return; }
+  if(!DB){ return; }
+  
+  let hits = [];
+  if(IDX[q]){
+    hits = IDX[q].map(i => DB[i]);
+  } else {
+    const qUpper = q.toUpperCase();
+    for(const plate in IDX){
+      if(plate.toUpperCase().includes(qUpper)){
+        hits = hits.concat(IDX[plate].map(i => DB[i]));
+      }
+    }
+  }
+  
+  const resDiv = document.getElementById('results');
+  
+  if(hits.length === 0){
+    resDiv.innerHTML = `<div class="empty-state"><div class="icon">😕</div><p>未找到车牌包含「${q}」的车辆</p></div>`;
+    return;
+  }
+  
+  let html = `<div class="result-header"><span>找到 <span class="result-count">${hits.length}</span> 条记录</span></div>`;
+  
+  const branches = {};
+  for(const r of hits){
+    const b = r.b || '未分类';
+    if(!branches[b]) branches[b] = [];
+    branches[b].push(r);
+  }
+  
+  for(const [branch, records] of Object.entries(branches)){
+    for(const r of records){
+      let cardClass = '';
+      let tagHtml = '';
+      const isOut = r.s === 0;
+      const hasBorrow = r.bt && !r.rt;
+      const hasReturn = r.bt && r.rt;
+      
+      if(isOut && hasBorrow){
+        cardClass = ' out';
+        tagHtml = '<span class="out-tag">借出中</span>';
+      } else if(isOut){
+        cardClass = ' out';
+        tagHtml = '<span class="out-tag">已出库</span>';
+      } else if(hasBorrow){
+        tagHtml = '<span class="out-tag">借出中</span>';
+        cardClass = ' out';
+      } else if(hasReturn){
+        tagHtml = '<span class="returned-tag">已归还</span>';
+      } else {
+        tagHtml = '<span class="in-tag">在库</span>';
+      }
+      
+      html += `<div class="card${cardClass}">
+        <div class="plate">${r.p}${tagHtml}</div>
+        <div class="fixed-branch"><span class="branch-badge">${branch}</span></div>
+        <div class="info-grid">
+          <div class="info-item"><span class="info-label">车架号</span><span class="info-value">${r.v || '--'}<span class="vin-copy" onclick="copyText('${(r.v||'').replace(/'/g,"\\'")}')">📋</span></span></div>
+          <div class="info-item"><span class="info-label">序号</span><span class="info-value">${r.n || '--'}</span></div>
+        </div>`;
+      
+      if(r.bt){
+        html += `<div class="borrow-info">
+          <div class="bi-title">📤 借用记录</div>
+          <div class="bi-row"><span>借用时间</span><span>${r.bt}</span></div>
+          <div class="bi-row"><span>数量</span><span>${r.q||'--'}</span></div>
+          <div class="bi-row"><span>借用人</span><span>${r.br||'--'}</span></div>
+          <div class="bi-row"><span>用途</span><span>${r.pu||'--'}</span></div>`;
+        if(r.rt){
+          html += `<div class="return-info">✅ 已归还 · 归还时间：${r.rt} · 归还数量：${r.rq||'--'}</div>`;
+        }
+        html += `</div>`;
+      }
+      
+      html += `</div>`;
+    }
+  }
+  
+  resDiv.innerHTML = html;
+}
+
+function copyText(text){
+  if(!text) return;
+  navigator.clipboard.writeText(text).then(() => {}).catch(() => {
+    prompt('复制以下车架号：', text);
+  });
+}
+
+document.getElementById('searchInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') search();
+});
+
+loadData();
+</script>
+</body>
+</html>
