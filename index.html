@@ -88,7 +88,7 @@ const UPDATE_DATE = "2026-06-17";
 
 async function loadData(){
   try{
-    const resp = await fetch('data/vehicle_data.json');
+    const resp = await fetch('data/vehicle_data.json?t=' + Date.now());
     const raw = await resp.json();
     DB = raw.d;
     IDX = raw.i;
