@@ -126,7 +126,7 @@ function search(){
   const resDiv = document.getElementById('results');
   
   if(hits.length === 0){
-    resDiv.innerHTML = `<div class="empty-state"><div class="icon">😕</div><p>未找到车牌包含「${q}」的车辆</p></div>`;
+    resDiv.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>当前行驶证不在总部，详情请咨询后勤</p></div>`;
     return;
   }
   
